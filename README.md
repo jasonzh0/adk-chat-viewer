@@ -14,7 +14,7 @@ A standalone Next.js application for viewing and analyzing Google ADK (Agent Dev
 
 ### Prerequisites
 
-- Node.js 18.x or higher
+- A supported Node.js LTS release (Node.js 24 recommended)
 - npm or yarn
 
 ### Installation
@@ -55,6 +55,22 @@ yarn start
 3. View the conversation, function calls, and attached files
 4. Download any attached files as needed
 
+## PDF export security
+
+Markdown exports render with JavaScript and external network/file requests disabled.
+Text, formatting and inline data images are supported; remote images and embedded
+web pages are omitted. Run the PDF service as an unprivileged user in an environment
+that supports Chromium's sandbox. Browser processes are closed after both successful
+and failed renders.
+
+## Testing PDF exports
+
+After `npm ci` and `npm run build`, start a local production server with `npm start`.
+Run the PDF integration checks with `PDF_TEST_ORIGIN=http://localhost:3000 npm run test:pdf`.
+These checks launch Chromium through the application and verify PDF output, empty input,
+and blocked image, frame, stylesheet, CSS, and script requests to a local canary server.
+Set `PUPPETEER_EXECUTABLE_PATH` on the application server if using an existing Chromium installation.
+
 ## License
 
-MIT 
+MIT

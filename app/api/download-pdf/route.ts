@@ -86,36 +86,37 @@ export async function POST(request: NextRequest) {
         </html>
       `;
       
-      // Generate PDF using Puppeteer
-      const browser = await puppeteer.launch({ 
-        headless: true,
-        args: ['--no-sandbox', '--disable-setuid-sandbox']
-      });
-      const page = await browser.newPage();
-      await page.setContent(html, { waitUntil: 'load' });
-      await page.waitForNetworkIdle({ idleTime: 500, timeout: 30_000 });
-      
-      // Generate PDF
-      const pdf = await page.pdf({
-        format: 'A4',
-        margin: {
-          top: '30px',
-          right: '30px',
-          bottom: '30px',
-          left: '30px'
-        },
-        printBackground: true
-      });
-      
-      await browser.close();
-      
-      // Return PDF as response
-      return new NextResponse(new Uint8Array(pdf).buffer, {
-        headers: {
-          'Content-Type': 'application/pdf',
-          'Content-Disposition': `attachment; filename="${filename}"`,
-        },
-      });
+      // Render untrusted exports offline, with Chromium's sandbox enabled.
+      const browser = await puppeteer.launch({ headless: true });
+      try {
+        const page = await browser.newPage();
+        await page.setJavaScriptEnabled(false);
+        await page.setRequestInterception(true);
+        page.on('request', request => {
+          // Inline data images are supported; remote and local-file resources are not.
+          const resolution = request.url().startsWith('data:')
+            ? request.continue()
+            : request.abort('blockedbyclient');
+          void resolution.catch(() => { /* The page may already have closed. */ });
+        });
+        await page.setContent(html, { waitUntil: 'load', timeout: 30_000 });
+        await page.waitForNetworkIdle({ idleTime: 500, timeout: 30_000 });
+
+        const pdf = await page.pdf({
+          format: 'A4',
+          margin: { top: '30px', right: '30px', bottom: '30px', left: '30px' },
+          printBackground: true
+        });
+
+        return new NextResponse(new Uint8Array(pdf).buffer, {
+          headers: {
+            'Content-Type': 'application/pdf',
+            'Content-Disposition': `attachment; filename="${filename}"`,
+          },
+        });
+      } finally {
+        await browser.close();
+      }
     } 
     // Original PDF file download functionality
     else {
