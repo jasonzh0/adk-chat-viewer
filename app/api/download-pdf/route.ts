@@ -92,7 +92,8 @@ export async function POST(request: NextRequest) {
         args: ['--no-sandbox', '--disable-setuid-sandbox']
       });
       const page = await browser.newPage();
-      await page.setContent(html, { waitUntil: 'networkidle0' });
+      await page.setContent(html, { waitUntil: 'load' });
+      await page.waitForNetworkIdle({ idleTime: 500, timeout: 30_000 });
       
       // Generate PDF
       const pdf = await page.pdf({
@@ -109,7 +110,7 @@ export async function POST(request: NextRequest) {
       await browser.close();
       
       // Return PDF as response
-      return new NextResponse(pdf, {
+      return new NextResponse(new Uint8Array(pdf).buffer, {
         headers: {
           'Content-Type': 'application/pdf',
           'Content-Disposition': `attachment; filename="${filename}"`,
